@@ -1,59 +1,50 @@
-const axios = require('axios');
-const FormData = require('form-data');
-const { Readable } = require('stream');
+import axios from 'axios';
+import FormData from 'form-data';
+import { Readable } from 'stream';
 
 const bufferToStream = (buffer) => {
     return Readable.from(buffer);
-};
-
-// Helper function to convert audio to text (use your transcription service here)
-const convertAudioToText = async (audioBuffer) => {
-    // This function should use a transcription service to convert audioBuffer to text
-    // Replace with your transcription logic
-    return 'Transcribed text here'; // Example placeholder text
 };
 
 const speechToText = async (req, res) => {
     const audioFile = req.file;
 
     if (!audioFile) {
-        return res.status(400).json({ message: 'Audio file is required.' });
+        res.status(400).json({ message: 'Audio file is required.' });
+        return;
     }
 
     try {
-        // Convert audio to text using a transcription service
-        const transcribedText = await convertAudioToText(audioFile.buffer);
+        const audioStream = bufferToStream(audioFile.buffer);
 
-        // Now use the new API to process the transcribed text
+        // Create FormData and append the necessary data
+        const data = new FormData();
+        data.append('file', audioStream, { filename: 'audio.webm', contentType: 'audio/webm' });
+        data.append('model', 'whisper-1');
+        data.append('response_format', 'json');
+
+        // Set the configuration for the axios request
         const options = {
             method: 'POST',
-            url: 'https://open-ai21.p.rapidapi.com/conversationpalm2',
+            url: 'https://whisper-speech-to-text1.p.rapidapi.com/speech-to-text',
             headers: {
-                'x-rapidapi-key': process.env.RAPIDAPI_KEY, // Replace with your RapidAPI key
-                'x-rapidapi-host': 'open-ai21.p.rapidapi.com',
-                'Content-Type': 'application/json',
+                ...data.getHeaders(),
+                'x-rapidapi-key': '379c0edc45msh10f38b1d954267dp1137cfjsn7e7aad92235e',
+                'x-rapidapi-host': 'whisper-speech-to-text1.p.rapidapi.com',
             },
-            data: {
-                messages: [
-                    {
-                        role: 'user',
-                        content: transcribedText,
-                    },
-                ],
-            },
+            data: data,
         };
 
+        // Make the request to the API
         const response = await axios.request(options);
-        const result = response.data;
+        const transcription = response.data.text;
 
-        console.log('API Response:', result);
-        res.json(result);
+        console.log('Transcription:', transcription);
+        res.json({ transcription });
     } catch (error) {
         console.error('API Error Response:', error.response ? error.response.data : error.message);
-        res.status(500).json({ error: 'Error processing request' });
+        res.status(500).json({ error: 'Error transcribing audio' });
     }
 };
 
-module.exports = {
-    speechToText
-};
+export default speechToText;
